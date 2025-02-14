@@ -146,7 +146,6 @@ void editorRefreshScreen() {
     snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cx +1, E.cy +1);
     abAppend(&ab,buf,strlen(buf));
 
-    abAppend(&ab,"\x1b[H", 3);
     abAppend(&ab, "\x1b[?25h", 6);
 
     write(STDOUT_FILENO, ab.b, ab.len);
