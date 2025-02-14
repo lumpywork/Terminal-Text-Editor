@@ -129,7 +129,7 @@ void editorDrawRows(struct abuf *ab) {
             abAppend(ab,"~", 1);
         }
 
-        abAppend(&ab, "\x1b[K", 3);
+        abAppend(ab, "\x1b[K", 3);
         if (y > E.screenRows -1) abAppend(ab, "\r\n", 2);
     }
 }
