@@ -56,7 +56,24 @@ char editorReadKey() {
     while ((nread = read(0, &c, 1)) != 1) {
         if (nread == -1 && errno != EAGAIN) die("read");
     }
-    return c;
+    if (c == '\x1b') {
+        char seq [3];
+
+        if (read(STDIN_FILENO, &seq[0],1) != 1) return '\x1b';
+        if (read(STDIN_FILENO, &seq[1],1) != 1) return '\x1b';
+
+        if (seq[0] == '[') {
+            switch (c) {
+                case 'A': return 'w';
+                case 'B': return 's';
+                case 'C': return 'd';
+                case 'D': return 'a';
+            }
+        }
+        return '\x1b';
+    }else {
+        return c;
+    }
 }
 
 int getCursorPosition(int *row, int *cols) {
@@ -83,7 +100,7 @@ int getWindowSize(int *rows, int *cols) {
 
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
         if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12) return -1;
-        return getCursorPosition(cols, rows);
+        return getCursorPosition(rows, cols);
     } else {
         *cols = ws.ws_col;
         *rows = ws.ws_row;
@@ -119,7 +136,7 @@ void editorDrawRows(struct abuf *ab) {
             char welcome[82];
             int welcomeLen = snprintf(welcome, sizeof(welcome), "Kilo Editor -- version %s", KILO_VERSION);
             if (welcomeLen > E.screenCols) welcomeLen = E.screenCols;
-            int padding = (welcomeLen + E.screenRows)/2;
+            int padding = (E.screenCols - welcomeLen)/2;
             if (padding) {
                 abAppend(ab,"~", 1);
                 padding--;
@@ -143,7 +160,7 @@ void editorRefreshScreen() {
     editorDrawRows(&ab);
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cx +1, E.cy +1);
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy +1, E.cx +1);
     abAppend(&ab,buf,strlen(buf));
 
     abAppend(&ab, "\x1b[?25h", 6);
@@ -152,6 +169,23 @@ void editorRefreshScreen() {
     abFree(&ab);
 }
 /*** Input ***/
+void editorMoveKey(char key) {
+    switch (key) {
+        case 'a':
+            E.cx--;
+            break;
+        case 'd':
+            E.cx++;
+            break;
+        case 'w':
+            E.cy--;
+            break;
+        case 's':
+            E.cy++;
+            break;
+    }
+}
+
 void editorProcessKeyPressed() {
     char c = editorReadKey();
     switch (c) {
@@ -160,9 +194,16 @@ void editorProcessKeyPressed() {
             write(STDOUT_FILENO, "\x1b[H", 3);
             exit(0);
             break;
+
+
+        case 'w':
+        case 's':
+        case 'a':
+        case 'd':
+        editorMoveKey(c);
+        break;
     }
 }
-
 /*** innit ***/
 void innitEditor() {
     E.cx = 0;
